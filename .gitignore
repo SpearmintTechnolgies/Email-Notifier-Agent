@@ -1,0 +1,18 @@
+# Runtime / secrets
+.env
+.env.*
+!.env.example
+data/*.log
+data/*.pid
+data/*.db
+data/run-once.*
+data/bot.stdout.log
+data/bot.stderr.log
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.crt
+*.key
+.DS_Store
+Thumbs.db
