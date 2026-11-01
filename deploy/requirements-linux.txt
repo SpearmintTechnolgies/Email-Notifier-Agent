@@ -1,0 +1,38 @@
+# Mailops - Linux (Amazon Linux 2023 / CPython 3.12.x) runtime requirements.
+#
+# This is the DIRECT dependency manifest. It is intentionally identical in
+# content to the repo-root requirements.txt (the Windows bot's manifest) so the
+# two platforms never drift; it exists separately only so the Linux-only
+# OPTIONAL extras below can be documented in one place without touching the
+# running Windows deployment's manifest.
+#
+# For a byte-reproducible install use the full pinned closure instead:
+#   pip install -r deploy/requirements-linux.lock.txt
+#
+# ---------------------------------------------------------------- required
+python-telegram-bot==22.6
+httpx==0.28.1
+
+# Secure mobile onboarding web interface (loopback HTTPS + encrypted secrets).
+aiohttp==3.11.11
+cryptography==44.0.0
+
+# dev / tests (the Linux acceptance run executes the full suite)
+pytest==8.3.4
+
+# ---------------------------------------------------------------- optional
+# Install ONLY if the matching feature is turned on. Each one is imported
+# lazily inside its own code path, so the bot starts and runs without them.
+#
+#   boto3        -> required when MAILOPS_VAULT_BACKEND=ssm
+#                   (mailops/secrets_vault.py, AWS SSM Parameter Store +
+#                   KMS credential backend; this is the planned Linux
+#                   secret-at-rest mode, see docs/AWS_CREDENTIAL_MIGRATION_PLAN.md)
+#   dnspython    -> required only when MAILOPS_AUTOCONFIG_MX=1
+#                   (mailops/server_resolution.py MX-based host suggestion)
+#   openpyxl     -> required only by scripts/siteground_bulk_import.py when
+#                   reading .xlsx input (CSV input needs nothing extra)
+#
+# boto3>=1.35,<2
+# dnspython==2.7.0
+# openpyxl==3.1.5

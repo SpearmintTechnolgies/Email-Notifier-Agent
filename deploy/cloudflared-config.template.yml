@@ -1,0 +1,53 @@
+# Cloudflare Tunnel config for Mailops onboarding (mailops.altcoininformer.com)
+#
+# This file is installed to:
+#   C:\ProgramData\Cloudflare\cloudflared\config.yml
+# after `cloudflared tunnel login` and `cloudflared tunnel create mailops-web`.
+# The placeholders are substituted at install time by scripts\install_tunnel.ps1.
+#
+# Design notes:
+# * `tunnel`/`credentials-file`: pin the service to ONE named tunnel.
+#   The LocalSystem-run service reads the credentials JSON created by
+#   `cloudflared tunnel create` under the LOGGED-IN USER's %USERPROFILE%\.cloudflared\
+#   and we move it to %PROGRAMDATA%\Cloudflare\cloudflared\ so LocalSystem can read it.
+# * `originRequest.noTLSVerify: true` is REQUIRED because the local
+#   onboarding server uses a locally-generated self-signed certificate
+#   (defence-in-depth loopback TLS). This flag ONLY affects the
+#   loopback origin leg; the public leg still uses Cloudflare's
+#   production certificate for mailops.altcoininformer.com.
+# * `connectTimeout` / `tlsTimeout` are tight to fail closed quickly when
+#   the Mailops process is down (laptop asleep, log off, crash) rather
+#   than hanging the user's phone.
+# * Ingress fall-through is `http_status:404` — Cloudflare returns 404
+#   for any hostname OR path that is not the Mini App. We do NOT return
+#   a redirect, a login prompt, or anything that could leak another host.
+# * `warp-routing` is NOT enabled. The tunnel carries HTTPS to one
+#   loopback origin and nothing else.
+# * No metrics port is bound (would open a local TCP listener).
+
+tunnel: __TUNNEL_UUID__
+credentials-file: C:\ProgramData\Cloudflare\cloudflared\__TUNNEL_UUID__.json
+
+# Only one hostname is served. Everything else -> 404 at Cloudflare's edge.
+ingress:
+  - hostname: mailops.altcoininformer.com
+    service: https://127.0.0.1:8738
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 10s
+      tlsTimeout: 10s
+      tcpKeepAlive: 30s
+      keepAliveTimeout: 90s
+      httpHostHeader: mailops.altcoininformer.com
+      # Disable chunked transfer buffering for small JSON responses
+      disableChunkedEncoding: false
+  - service: http_status:404
+
+# Logging: keep rotating logs out of the user profile so LocalSystem can write.
+logfile: C:\ProgramData\Cloudflare\cloudflared\cloudflared.log
+loglevel: info
+transport-loglevel: warn
+
+# Auto-update is handled by the service installer; disable in-process updater
+# so there is no silent restart during an onboarding session.
+no-autoupdate: true

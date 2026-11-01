@@ -1,0 +1,75 @@
+# Mailops systemd unit TEMPLATE for the prepared AWS host "dm-mini".
+#
+# NOT INSTALLED AND NOT ENABLED BY THIS RELEASE PACKAGE.
+#
+# This variant matches the host that has actually been prepared:
+#   Amazon Linux 2023 | CPython 3.12.14 | service user: mailops
+#   install root: /opt/mailops | venv: /opt/mailops/venv   <-- note: NOT .venv
+#
+# It differs from deploy/mailops.service.template (the earlier planning
+# artifact) in three deliberate ways:
+#   1. Interpreter is /opt/mailops/venv/bin/python, matching the venv that
+#      exists on dm-mini. The older template said ".venv" and would fail with
+#      status=203/EXEC.
+#   2. ExecStart uses `-m mailops`, the package entry point
+#      (mailops/__main__.py -> main.cli), rather than `-m mailops.main`.
+#   3. MAILOPS_VAULT_BACKEND is NOT forced to "ssm" here, because the ssm
+#      backend requires boto3 (not in the default requirements) plus an IAM
+#      role and a KMS key. Switch it on only after the credential migration in
+#      docs/AWS_CREDENTIAL_MIGRATION_PLAN.md has been executed and approved.
+#
+# Install (operator, at the approved cutover only):
+#   sudo cp deploy/mailops.service.dm-mini.template /etc/systemd/system/mailops.service
+#   sudo systemctl daemon-reload
+#   # DO NOT start/enable until the Windows bot has been stopped - one
+#   # Telegram token can only be polled by one process.
+
+[Unit]
+Description=Mailops email agent (Telegram) + loopback onboarding server
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=mailops
+Group=mailops
+WorkingDirectory=/opt/mailops
+Environment=PYTHONPATH=/opt/mailops
+Environment=PYTHONUNBUFFERED=1
+Environment=MAILOPS_HOME=/opt/mailops
+Environment=MAILOPS_HIMALAYA_DIR=/opt/mailops/himalaya
+# Must be absolute on Linux: himalaya_client.py overrides HOME for the
+# himalaya child process, so a ~-relative key dir would resolve differently
+# in the bot and in the `get-secret` child. See deploy/env.linux.template.
+Environment=MAILOPS_KEY_DIR=/opt/mailops/keys
+Environment=HIMALAYA_BIN=/usr/local/bin/himalaya
+# Uncomment ONLY after the SSM/KMS credential migration is approved AND
+# boto3 is installed in the venv:
+# Environment=MAILOPS_VAULT_BACKEND=ssm
+# Environment=MAILOPS_SSM_PREFIX=/mailops/secrets
+# Environment=MAILOPS_SSM_KMS_KEY_ID=alias/mailops-secrets
+# Environment=AWS_REGION=us-east-1
+ExecStart=/opt/mailops/venv/bin/python -m mailops run
+Restart=on-failure
+RestartSec=120
+
+# --- least-privilege hardening ---
+NoNewPrivileges=yes
+ProtectSystem=strict
+# ProtectHome=yes is safe only because every mailops path is under
+# /opt/mailops (MAILOPS_HOME + MAILOPS_KEY_DIR above). Do not remove those
+# two Environment= lines while this is enabled.
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/opt/mailops/data /opt/mailops/secrets /opt/mailops/keys /opt/mailops/tokens /opt/mailops/himalaya
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+# The bot writes its own rotating log to /opt/mailops/data/mailops.log; stderr
+# additionally lands in the journal.
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

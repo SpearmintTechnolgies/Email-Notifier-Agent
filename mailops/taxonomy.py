@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from .config import PRIORITY_FOLDERS, TAG_FOLDERS, load_accounts
 from .himalaya_client import Himalaya
+from .policy import can_organize, describe
 
 
 @dataclass
@@ -12,20 +13,38 @@ class TaxonomyReport:
     created: list[str]
     existed: list[str]
     failed: list[str]
+    # Non-empty when the account's policy forbids creating folders: nothing
+    # was listed, created or changed on that mailbox.
+    skipped: str = ""
 
 
 def _normalize_names(names: list[str]) -> set[str]:
     return {n.strip().lower() for n in names}
 
 
-def ensure_taxonomy(account_id: str | None = None) -> list[TaxonomyReport]:
-    him = Himalaya()
+def ensure_taxonomy(
+    account_id: str | None = None, him: Himalaya | None = None
+) -> list[TaxonomyReport]:
+    if him is None:
+        him = Himalaya()
     accounts = load_accounts()
     if account_id:
         accounts = [a for a in accounts if a.id == account_id]
     reports: list[TaxonomyReport] = []
     wanted = PRIORITY_FOLDERS + TAG_FOLDERS
     for acc in accounts:
+        if not can_organize(acc.id):
+            # Read-only / not-yet-approved account: never touch its folders.
+            reports.append(
+                TaxonomyReport(
+                    account_id=acc.id,
+                    created=[],
+                    existed=[],
+                    failed=[],
+                    skipped=describe(acc.id),
+                )
+            )
+            continue
         existing = _normalize_names(him.mailbox_list(acc.id))
         created: list[str] = []
         existed: list[str] = []
@@ -68,6 +87,9 @@ def bootstrap_all() -> str:
     lines = ["Folder taxonomy bootstrap"]
     for rep in ensure_taxonomy():
         lines.append(f"\n[{rep.account_id}]")
+        if rep.skipped:
+            lines.append(f"  skipped (no folders created): {rep.skipped}")
+            continue
         lines.append(f"  created: {len(rep.created)} {rep.created}")
         lines.append(f"  existed: {len(rep.existed)}")
         if rep.failed:

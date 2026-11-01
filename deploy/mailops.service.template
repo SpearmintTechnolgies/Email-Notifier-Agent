@@ -1,0 +1,65 @@
+# Mailops systemd unit TEMPLATE for the Linux/EC2 target (dm-mini, us-east-1).
+#
+# NOT YET INSTALLED. This file is a prepared reference artifact only, per
+# the "do not modify the AWS server" constraint for this planning pass.
+# An operator installs it manually during the approved cutover:
+#
+#   sudo cp deploy/mailops.service.template /etc/systemd/system/mailops.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable mailops   # do NOT 'start' until cutover time (see plan doc)
+#
+# Design notes (mirrors the Windows Scheduled Task in scripts/register_startup.ps1):
+# * Runs as a dedicated non-root service user (__MAILOPS_USER__), never root.
+#   Least privilege: this user owns only /opt/mailops and nothing else on
+#   the box needs to trust it.
+# * `MAILOPS_VAULT_BACKEND=ssm` is set here, NOT in a checked-in .env, so the
+#   unit file (readable by anyone who can `systemctl cat`) carries no secret
+#   material -- only a mode flag and the KMS key alias name.
+# * No credentials, bot token, or passwords belong in this file. They belong
+#   in /opt/mailops/.env (mode 600, owned by __MAILOPS_USER__) exactly as on
+#   Windows today, or will eventually be sourced from AWS Secrets
+#   Manager/SSM if TELEGRAM_BOT_TOKEN itself is migrated there too (out of
+#   scope for this pass; today it stays in .env on both platforms).
+# * `Restart=on-failure` + `RestartSec` mirrors the Scheduled Task's bounded
+#   auto-restart (3 retries / 2 min) without restarting into a crash loop.
+# * `AmbientCapabilities=` empty, `NoNewPrivileges=yes`, `ProtectSystem=strict`
+#   with an explicit `ReadWritePaths=` allowlist -- defence in depth beyond
+#   what the Windows deployment had (Windows has no equivalent primitive).
+
+[Unit]
+Description=Mailops email agent (@ourmailagent_bot) + loopback onboarding server
+After=network-online.target
+Wants=network-online.target
+# StartLimitIntervalSec/Burst bound restart storms if the box itself is sick.
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=__MAILOPS_USER__
+Group=__MAILOPS_USER__
+WorkingDirectory=/opt/mailops
+Environment=PYTHONPATH=/opt/mailops
+Environment=MAILOPS_VAULT_BACKEND=ssm
+Environment=MAILOPS_SSM_PREFIX=/mailops/secrets
+Environment=MAILOPS_SSM_KMS_KEY_ID=alias/mailops-secrets
+Environment=AWS_REGION=us-east-1
+ExecStart=/opt/mailops/.venv/bin/python -m mailops.main run
+Restart=on-failure
+RestartSec=120
+# Bounded restarts: give up after 3 crashes inside the 10-minute window above
+# so a persistent failure surfaces (journalctl / CloudWatch alarm) instead of
+# looping forever and silently burning through Telegram API rate limits.
+
+# --- least-privilege hardening (no Windows equivalent) ---
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/opt/mailops/data /opt/mailops/secrets
+# SSM/KMS calls need outbound HTTPS only; no raw sockets, no setuid.
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

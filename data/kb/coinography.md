@@ -40,3 +40,12 @@ Best regards,
 Coinography Team
 https://coinography.com
 advertise: https://coinography.com/advertise
+
+## Sales goal (moved here from the former shared KB; Coinography-only)
+- Convert real buyers (ads, sponsorships, PR) into a clear next step: media kit / rates / payment / brief
+- Don't waste time on SEO link-sellers, procurement RFQs, or vague "partnership evaluations" with no budget
+- When relevant, state what Coinography sells (see "What we sell") and ask for budget + timeline + asset type
+
+## Verification status
+- Carried over from the previous setup; NOT re-verified. Confirm the Authority Bundle price, links and
+  signature are current before enabling replies for this inbox

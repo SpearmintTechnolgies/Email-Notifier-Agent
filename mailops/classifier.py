@@ -1,6 +1,7 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -10,6 +11,8 @@ import httpx
 from .config import TAG_TO_FOLDER, load_settings
 from .priority_rules import ensure_priority_rules, format_rules_card, match_priority
 
+log = logging.getLogger("mailops.classifier")
+
 
 @dataclass
 class Classification:
@@ -17,6 +20,8 @@ class Classification:
     tags: list[str] = field(default_factory=list)
     needs_reply: bool = False
     reason: str = ""
+    # rules | llm | no-key | llm-fallback — never silent about which path ran
+    source: str = ""
 
 
 def _sender_email(envelope: dict[str, Any]) -> str:
@@ -33,13 +38,18 @@ def _subject(envelope: dict[str, Any]) -> str:
     return str(envelope.get("subject") or "")
 
 
-def classify_rules(envelope: dict[str, Any], preview: str = "") -> Classification | None:
-    """Keyword / domain matcher from structured priority_rules."""
+def classify_rules(
+    envelope: dict[str, Any], preview: str = "", account_id: str | None = None
+) -> Classification | None:
+    """Keyword / domain matcher from structured priority_rules: the
+    company-wide baseline plus the inbox's own ``account_priority_rules``."""
     settings = load_settings()
     ensure_priority_rules(settings)
     sender = _sender_email(envelope)
     subject = _subject(envelope)
-    hit = match_priority(sender=sender, subject=subject, preview=preview, settings=settings)
+    hit = match_priority(
+        sender=sender, subject=subject, preview=preview, settings=settings, account_id=account_id
+    )
     if hit is None:
         return None
     tags: list[str] = []
@@ -50,7 +60,7 @@ def classify_rules(envelope: dict[str, Any], preview: str = "") -> Classificatio
         tags = ["billing"]
     elif hit.priority == 1 and any(k in blob for k in ("advert", "sponsor", "listing", "media kit")):
         tags = ["sales-lead"]
-    return Classification(hit.priority, tags[:1], hit.needs_reply, hit.reason)
+    return Classification(hit.priority, tags[:1], hit.needs_reply, hit.reason, source="rules")
 
 
 async def classify_llm(
@@ -62,7 +72,10 @@ async def classify_llm(
     account_id: str | None = None,
 ) -> Classification:
     settings = load_settings()
-    rules = ensure_priority_rules(settings)
+    rules = ensure_priority_rules(settings, account_id)
+    # Company-wide context is brand-neutral; everything brand-specific comes
+    # from THIS inbox's purpose only, so one brand's identity never colours
+    # the classification of another brand's mail.
     context = (settings.get("inbox_context") or "").strip()
     purposes = settings.get("account_purposes") or {}
     account_purpose = (purposes.get(account_id) or "").strip() if account_id else ""
@@ -78,15 +91,17 @@ async def classify_llm(
         "Classify an email. Return ONLY JSON: "
         '{"priority":0-3,"tags":["sales-lead|partnership|support|billing|legal|security|ops|recruiting"],'
         '"needs_reply":bool,"reason":"short"}. '
-        "0=Critical act now, 1=Important today, 2=Normal this week, 3=Noise.\n\n"
+        "0=Critical act now, 1=Important today, 2=Normal this week, 3=Noise.\n"
+        "Rules are initial guidance, not rigid: weigh sender identity, message context "
+        "and evidence (e.g. a security keyword from an unrelated sender is likely phishing).\n\n"
         f"PRIORITY RULES:\n" + "\n".join(rules_txt) + "\n\n"
-        f"OVERALL:\n{context or '(not set)'}\n\n"
+        f"COMPANY-WIDE:\n{context or '(not set)'}\n\n"
         f"INBOX {account_id or '?'}:\n{account_purpose or '(not set)'}"
     )
     prompt = {
         "model": model,
         "temperature": 0.1,
-        "max_tokens": 200,
+        "max_tokens": 800,
         "messages": [
             {"role": "system", "content": system},
             {
@@ -95,8 +110,13 @@ async def classify_llm(
             },
         ],
     }
+    host = (runtime_base_url or "").lower()
+    if "groq.com" in host or "openai.com" in host:
+        prompt["response_format"] = {"type": "json_object"}
+    if "groq.com" in host and "gpt-oss" in (model or ""):
+        prompt["reasoning_effort"] = "low"
     if not api_key:
-        return Classification(2, [], False, "no llm key; default normal")
+        return Classification(2, [], False, "no llm key; default normal", source="no-key")
     try:
         async with httpx.AsyncClient(timeout=45.0) as client:
             r = await client.post(
@@ -114,10 +134,11 @@ async def classify_llm(
                 pr,
                 tags[:1],
                 bool(data.get("needs_reply", pr <= 1)),
-                str(data.get("reason") or "llm"),
+                f"llm: {data.get('reason') or 'classified'}",
+                source="llm",
             )
     except Exception as exc:  # noqa: BLE001
-        return Classification(2, [], False, f"llm fallback: {exc}")
+        return Classification(2, [], False, f"llm fallback: {exc}", source="llm-fallback")
 
 
 async def classify_message(
@@ -128,12 +149,15 @@ async def classify_message(
     model: str = "auto",
     account_id: str | None = None,
 ) -> Classification:
-    ruled = classify_rules(envelope, preview)
+    ruled = classify_rules(envelope, preview, account_id=account_id)
     if ruled is not None:
+        log.info("classify path=rules P%s %s", ruled.priority, ruled.reason)
         return ruled
-    return await classify_llm(
+    result = await classify_llm(
         runtime_base_url, api_key, envelope, preview, model, account_id=account_id
     )
+    log.info("classify path=%s P%s %s", result.source or "llm", result.priority, result.reason)
+    return result
 
 
 # re-export helper for bot UI

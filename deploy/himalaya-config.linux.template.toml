@@ -1,0 +1,55 @@
+# Mailops - himalaya config.toml TEMPLATE for Linux (/opt/mailops/himalaya/config.toml)
+#
+# SAFE TEMPLATE. Contains NO real mailbox, NO hostname, NO username and NO
+# password. The live 39-account config.toml is operational data and is NOT
+# shipped in this release archive.
+#
+# TWO ways to produce the real Linux config.toml:
+#
+#  A) MIGRATE the existing one (recommended - preserves every verified
+#     host/port/username exactly as the Windows bot uses them today):
+#
+#       # on Windows, read-only against the live config:
+#       python scripts/render_himalaya_linux_config.py ^
+#              --in himalaya/config.toml ^
+#              --out build/config.linux.toml ^
+#              --python /opt/mailops/venv/bin/python
+#
+#     That rewrites ONLY the absolute `passwd.command` interpreter path
+#     (Windows .venv python.exe -> the Linux venv python) and leaves
+#     everything else byte-identical. Transfer the result at cutover.
+#
+#  B) RE-ONBOARD each mailbox on Linux through the bot (Smart Add / Quick Add
+#     / bulk CSV). `mailops/webmail_onboarding.py::render_account_block` uses
+#     `sys.executable`, so blocks created on Linux get the correct
+#     interpreter path automatically with no editing at all.
+#
+# INVARIANT (both ways): a password is NEVER written into this file. Himalaya
+# always obtains it by executing `passwd.command`, which runs
+# `python -m mailops get-secret <account_id> <imap|smtp>` and receives the
+# plaintext on stdout. Nothing is persisted.
+
+# --------------------------------------------------------------------------
+# One account block. Repeat per mailbox. Exactly one account must have
+# default = true.
+# --------------------------------------------------------------------------
+[accounts.example]
+default = true
+email = "info@example.com"
+display-name = "Example Brand"
+
+[accounts.example.imap]
+# Implicit TLS. 993 = IMAPS.
+server = "imap.example.com:993"
+
+[accounts.example.imap.sasl.plain]
+authcid = "info@example.com"
+passwd.command = ["/opt/mailops/venv/bin/python", "-m", "mailops", "get-secret", "example", "imap"]
+
+[accounts.example.smtp]
+# Implicit TLS. 465 = SMTPS.
+server = "smtp.example.com:465"
+
+[accounts.example.smtp.sasl.plain]
+authcid = "info@example.com"
+passwd.command = ["/opt/mailops/venv/bin/python", "-m", "mailops", "get-secret", "example", "smtp"]

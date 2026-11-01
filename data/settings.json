@@ -8,15 +8,307 @@
   "vip_senders": [],
   "muted_senders": [],
   "muted_domains": [],
-  "sync_interval_seconds": 3600,
-  "inbox_context": "I run two crypto news/media sites for revenue: Coinography (coinography.com) and Memecoinist (memecoinist.com). Primary income is advertising and paid placements — banner ads, sponsored articles, newsletter sponsorships, press releases, and (for Memecoinist) paid memecoin/token listing & promo posts. CRITICAL: security and payment failures. IMPORTANT: anyone asking rates/pricing, how much to post/publish/advertise, media kit, sponsorship, listing fees, or ready to buy. NORMAL: vague collab intros that might become paid work. NOISE: cold RFQ/procurement spam, manufacturer outreach, SEO/guest-post link packages, newsletters, no-reply digests, fake partnership evaluations with no ad budget.",
+  "sync_interval_seconds": 900,
+  "digest_enabled": true,
+  "digest_interval_seconds": 900,
+  "digest_p0_immediate": false,
+  "digest_include_p2": false,
+  "digest_mailboxes_disabled": [],
+  "digest_initial_sync_silent": true,
+  "digest_mailbox_page_size": 20,
+  "digest_delivered_retention_seconds": 604800,
+  "digest_edit_in_place": true,
+  "ops_alert_standalone_enabled": false,
+  "sync_account_stagger_seconds": 3,
+  "inbox_context": "Company crypto news/media operation with several separate brands, each with its own business mailbox (Altcoin Informer, Coinography, Memecoinist). Each mailbox has its own purpose, reply knowledge and sender identity: judge and answer a message ONLY with that mailbox's own context, and never reuse one brand's pricing, links, signature, services or policies for another.",
   "account_purposes": {
-    "sales": "sales@coinography.com — Coinography sales inbox. Goal: close paid ads/sponsorships on coinography.com (banners, sponsored content, newsletter sponsorship, social campaigns). IMPORTANT when someone asks pricing, rates, media kit, how much to advertise/post, or wants a package. NOISE: product manufacturers, procurement RFQs, SEO link sellers.",
-    "coinography": "info@coinography.com — Coinography general/info inbox for the crypto news site. Same revenue model: paid advertising & sponsored posts. IMPORTANT: ad inquiries, rate questions, press-release buys, replies from advertisers. Also site/account/security issues. NOISE: cold RFQ spam, fake partnership blasts, newsletters.",
-    "memecoinist": "sales@memecoinist.com — Memecoinist sales for memecoin news/promo site. Revenue from paid listings, sponsored memecoin articles, promo posts, and ads. IMPORTANT: listing requests, how much to get featured/posted, PR packages for meme coins/tokens. NOISE: unrelated RFQs, SEO spam, generic partnership templates."
+    "sales": "sales@coinography.com \u2014 Coinography sales inbox. Goal: close paid ads/sponsorships on coinography.com (banners, sponsored content, newsletter sponsorship, social campaigns). IMPORTANT when someone asks pricing, rates, media kit, how much to advertise/post, or wants a package. NOISE: product manufacturers, procurement RFQs, SEO link sellers.",
+    "coinography": "info@coinography.com \u2014 Coinography general/info inbox for the crypto news site. Same revenue model: paid advertising & sponsored posts. IMPORTANT: ad inquiries, rate questions, press-release buys, replies from advertisers. Also site/account/security issues. NOISE: cold RFQ spam, fake partnership blasts, newsletters.",
+    "memecoinist": "sales@memecoinist.com \u2014 Memecoinist sales for memecoin news/promo site. Revenue from paid listings, sponsored memecoin articles, promo posts, and ads. IMPORTANT: listing requests, how much to get featured/posted, PR packages for meme coins/tokens. NOISE: unrelated RFQs, SEO spam, generic partnership templates.",
+    "altcoininformer": "info@altcoininformer.com - Altcoin Informer, a cryptocurrency-focused news and media mailbox. Purpose: receive and manage the business correspondence of the Altcoin Informer media business. CRITICAL: genuine account-security incidents, compromised access or urgent operational disruptions, serious payment or service failures. IMPORTANT: legitimate advertising and sponsorship enquiries, paying customer requests, time-sensitive partnership opportunities, customer support needing a response, relevant business enquiries. NORMAL: general correspondence, non-urgent operational messages, routine business updates. NOISE: irrelevant promotional outreach, unsolicited bulk marketing, obvious spam and unrelated offers. Initial guidance, not rigid rules: weigh sender identity, message context and evidence."
+  },
+  "account_priority_rules": {
+    "coinography": {
+      "p1": {
+        "keywords": [
+          "advertise on coinography",
+          "guest post for coinography"
+        ],
+        "description": "Revenue today: ad/listing buyers asking rates, pricing, media kit, sponsorship, or ready to pay to post on Coinography."
+      }
+    },
+    "sales": {
+      "p1": {
+        "keywords": [
+          "advertise on coinography",
+          "guest post for coinography"
+        ],
+        "description": "Revenue today: ad/listing buyers asking rates, pricing, media kit, sponsorship, or ready to pay to post on Coinography."
+      }
+    },
+    "memecoinist": {
+      "p1": {
+        "keywords": [
+          "advertise on memecoinist"
+        ],
+        "description": "Revenue today: ad/listing buyers asking rates, pricing, media kit, sponsorship, or ready to pay to post on Memecoinist."
+      }
+    },
+    "altcoininformer": {
+      "p0": {
+        "description": "Genuine account-security incidents, compromised access, urgent operational disruptions, serious payment or service failures.",
+        "keywords": [
+          "suspicious login",
+          "unusual sign-in",
+          "unauthorized access",
+          "account hacked",
+          "site is down",
+          "website is down",
+          "service outage",
+          "domain expired",
+          "ssl certificate expired",
+          "chargeback",
+          "payment dispute"
+        ]
+      },
+      "p1": {
+        "description": "Legitimate advertising/sponsorship enquiries, paying customers, time-sensitive partnerships, support needing a reply, relevant business enquiries.",
+        "keywords": [
+          "advertising enquiry",
+          "advertising inquiry",
+          "sponsorship enquiry",
+          "sponsorship inquiry",
+          "ad enquiry",
+          "ad inquiry",
+          "customer support",
+          "support request",
+          "time-sensitive",
+          "time sensitive"
+        ]
+      },
+      "p2": {
+        "description": "General correspondence, non-urgent operational messages, routine business updates."
+      },
+      "p3": {
+        "description": "Irrelevant promotional outreach, unsolicited bulk marketing, obvious spam and unrelated offers.",
+        "keywords": [
+          "bulk marketing",
+          "mass email",
+          "cold outreach",
+          "special offer",
+          "limited time offer",
+          "buy backlinks",
+          "guest posting service",
+          "lead generation",
+          "email list for sale",
+          "increase your traffic",
+          "web design services"
+        ]
+      }
+    }
   },
   "context_confirmed": true,
   "rules_confirmed": true,
+  "test_mode": false,
+  "account_policies": {
+    "altcoininformer": {
+      "organize": false,
+      "send": true
+    },
+    "alien": {
+      "organize": false,
+      "send": false
+    },
+    "marketing": {
+      "organize": false,
+      "send": false
+    },
+    "sales": {
+      "organize": false,
+      "send": false
+    },
+    "ahmedfalah": {
+      "organize": false,
+      "send": false
+    },
+    "golan": {
+      "organize": false,
+      "send": false
+    },
+    "editor": {
+      "organize": false,
+      "send": false
+    },
+    "toby": {
+      "organize": false,
+      "send": false
+    },
+    "coinography2": {
+      "organize": false,
+      "send": false
+    },
+    "liaprincess": {
+      "organize": false,
+      "send": false
+    },
+    "victordsouza": {
+      "organize": false,
+      "send": false
+    },
+    "stevenkeith": {
+      "organize": false,
+      "send": false
+    },
+    "philhughes": {
+      "organize": false,
+      "send": false
+    },
+    "news": {
+      "organize": false,
+      "send": false
+    },
+    "michellewhite": {
+      "organize": false,
+      "send": false
+    },
+    "aivideoagency": {
+      "organize": false,
+      "send": false
+    },
+    "coinography": {
+      "organize": false,
+      "send": false
+    },
+    "dmi": {
+      "organize": false,
+      "send": false
+    },
+    "kanygranger": {
+      "organize": false,
+      "send": false
+    },
+    "nftinsidernews": {
+      "organize": false,
+      "send": false
+    },
+    "memecoinist": {
+      "organize": false,
+      "send": false
+    },
+    "michaelanderson": {
+      "organize": false,
+      "send": false
+    },
+    "sherylmoore": {
+      "organize": false,
+      "send": false
+    },
+    "nicolelewis": {
+      "organize": false,
+      "send": false
+    },
+    "sarahbennett": {
+      "organize": false,
+      "send": false
+    },
+    "charlesrodriguez": {
+      "organize": false,
+      "send": false
+    },
+    "blockwire": {
+      "organize": false,
+      "send": false
+    },
+    "shekel": {
+      "organize": false,
+      "send": false
+    },
+    "marketing2": {
+      "organize": false,
+      "send": false
+    },
+    "media": {
+      "organize": false,
+      "send": false
+    },
+    "seo": {
+      "organize": false,
+      "send": false
+    },
+    "katiearcher": {
+      "organize": false,
+      "send": false
+    },
+    "jennadeleon": {
+      "organize": false,
+      "send": false
+    },
+    "100xnews": {
+      "organize": false,
+      "send": false
+    },
+    "aivideo": {
+      "organize": false,
+      "send": false
+    },
+    "bitcoinnewsbulletin": {
+      "organize": false,
+      "send": false
+    },
+    "coinnetwork": {
+      "organize": false,
+      "send": false
+    },
+    "ethereumnewsbulletin": {
+      "organize": false,
+      "send": false
+    },
+    "oracleworks": {
+      "organize": false,
+      "send": false
+    }
+  },
+  "active_accounts": [
+    "altcoininformer",
+    "alien",
+    "marketing",
+    "sales",
+    "coinography2",
+    "victordsouza",
+    "michellewhite",
+    "ahmedfalah",
+    "aivideoagency",
+    "coinography",
+    "dmi",
+    "editor",
+    "golan",
+    "kanygranger",
+    "liaprincess",
+    "news",
+    "nftinsidernews",
+    "philhughes",
+    "stevenkeith",
+    "toby",
+    "memecoinist",
+    "michaelanderson",
+    "sherylmoore",
+    "nicolelewis",
+    "sarahbennett",
+    "charlesrodriguez",
+    "blockwire",
+    "shekel",
+    "marketing2",
+    "media",
+    "seo",
+    "katiearcher",
+    "jennadeleon",
+    "100xnews",
+    "aivideo",
+    "bitcoinnewsbulletin",
+    "coinnetwork",
+    "ethereumnewsbulletin",
+    "oracleworks"
+  ],
   "priority_rules": {
     "p0": {
       "label": "Critical",
@@ -46,7 +338,7 @@
     },
     "p1": {
       "label": "Important",
-      "description": "Revenue today: ad/listing buyers asking rates, pricing, media kit, sponsorship, or ready to pay to post on Coinography/Memecoinist.",
+      "description": "Business today: advertising/sponsorship buyers and paying customers asking rates, pricing, media kit, or ready to pay to post.",
       "keywords": [
         "advertise",
         "advertising",
@@ -90,9 +382,6 @@
         "marketing package",
         "want to advertise",
         "interested in advertising",
-        "advertise on coinography",
-        "advertise on memecoinist",
-        "guest post for coinography",
         "cpm",
         "cpt",
         "budget for campaign",
@@ -155,5 +444,98 @@
     }
   },
   "important_keywords": [],
-  "noise_keywords": []
+  "noise_keywords": [],
+  "legacy_inbox_context": "I run two crypto news/media sites for revenue: Coinography (coinography.com) and Memecoinist (memecoinist.com). Primary income is advertising and paid placements \u2014 banner ads, sponsored articles, newsletter sponsorships, press releases, and (for Memecoinist) paid memecoin/token listing & promo posts. CRITICAL: security and payment failures. IMPORTANT: anyone asking rates/pricing, how much to post/publish/advertise, media kit, sponsorship, listing fees, or ready to buy. NORMAL: vague collab intros that might become paid work. NOISE: cold RFQ/procurement spam, manufacturer outreach, SEO/guest-post link packages, newsletters, no-reply digests, fake partnership evaluations with no ad budget.",
+  "verified_mail_servers": {
+    "coinography.com": {
+      "imap_host": "mail.coinography.com",
+      "imap_port": 993,
+      "smtp_host": "mail.coinography.com",
+      "smtp_port": 465,
+      "provider": "custom",
+      "verified_at": 1792686310.9076471,
+      "source_account_id": "jennadeleon"
+    },
+    "memecoinist.com": {
+      "imap_host": "mail.memecoinist.com",
+      "imap_port": 993,
+      "smtp_host": "mail.memecoinist.com",
+      "smtp_port": 465,
+      "provider": "custom",
+      "verified_at": 1792685587.8341095,
+      "source_account_id": "charlesrodriguez"
+    },
+    "blockwire.org": {
+      "imap_host": "mail.blockwire.org",
+      "imap_port": 993,
+      "smtp_host": "mail.blockwire.org",
+      "smtp_port": 465,
+      "provider": "custom",
+      "verified_at": 1792685618.037744,
+      "source_account_id": "blockwire"
+    },
+    "shekel.pro": {
+      "imap_host": "gcam1035.siteground.biz",
+      "imap_port": 993,
+      "smtp_host": "gcam1035.siteground.biz",
+      "smtp_port": 465,
+      "provider": "siteground",
+      "verified_at": 1792685628.540212,
+      "source_account_id": "marketing2"
+    },
+    "100xnews.com": {
+      "imap_host": "imap.hostinger.com",
+      "imap_port": 993,
+      "smtp_host": "smtp.hostinger.com",
+      "smtp_port": 465,
+      "provider": "hostinger",
+      "verified_at": 1792926085.6622722,
+      "source_account_id": "100xnews"
+    },
+    "aivideo.ae": {
+      "imap_host": "imap.hostinger.com",
+      "imap_port": 993,
+      "smtp_host": "smtp.hostinger.com",
+      "smtp_port": 465,
+      "provider": "hostinger",
+      "verified_at": 1792926354.2424142,
+      "source_account_id": "aivideo"
+    },
+    "bitcoinnewsbulletin.com": {
+      "imap_host": "imap.hostinger.com",
+      "imap_port": 993,
+      "smtp_host": "smtp.hostinger.com",
+      "smtp_port": 465,
+      "provider": "hostinger",
+      "verified_at": 1792926546.237715,
+      "source_account_id": "bitcoinnewsbulletin"
+    },
+    "coinnetwork.info": {
+      "imap_host": "imap.hostinger.com",
+      "imap_port": 993,
+      "smtp_host": "smtp.hostinger.com",
+      "smtp_port": 465,
+      "provider": "hostinger",
+      "verified_at": 1792926664.0896845,
+      "source_account_id": "coinnetwork"
+    },
+    "ethereumnewsbulletin.com": {
+      "imap_host": "imap.hostinger.com",
+      "imap_port": 993,
+      "smtp_host": "smtp.hostinger.com",
+      "smtp_port": 465,
+      "provider": "hostinger",
+      "verified_at": 1792926735.4811473,
+      "source_account_id": "ethereumnewsbulletin"
+    },
+    "oracleworks.co": {
+      "imap_host": "imap.hostinger.com",
+      "imap_port": 993,
+      "smtp_host": "smtp.hostinger.com",
+      "smtp_port": 465,
+      "provider": "hostinger",
+      "verified_at": 1792926796.0732608,
+      "source_account_id": "oracleworks"
+    }
+  }
 }

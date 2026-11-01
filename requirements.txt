@@ -1,2 +1,13 @@
 python-telegram-bot==22.6
 httpx==0.28.1
+
+# Secure mobile onboarding web interface (loopback HTTPS + encrypted secrets).
+# aiohttp runs the Mini App server inside the existing bot process (no second
+# Telegram poller). cryptography provides Fernet (CI/non-Windows fallback for
+# the secrets vault) and the self-signed localhost TLS cert generator used
+# when a public tunnel is not yet terminating TLS in front of us.
+aiohttp==3.11.11
+cryptography==44.0.0
+
+# dev / tests
+pytest==8.3.4

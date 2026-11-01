@@ -62,7 +62,7 @@ DEFAULT_PRIORITY_RULES: dict[str, dict[str, Any]] = {
     },
     "p1": {
         "label": "Important",
-        "description": "Revenue today: ad/listing buyers asking rates, pricing, media kit, sponsorship, or ready to pay to post.",
+        "description": "Business today: advertising/sponsorship buyers and paying customers asking rates, pricing, media kit, or ready to pay to post.",
         "keywords": [
             "advertise",
             "advertising",
@@ -106,8 +106,6 @@ DEFAULT_PRIORITY_RULES: dict[str, dict[str, Any]] = {
             "marketing package",
             "want to advertise",
             "interested in advertising",
-            "advertise on coinography",
-            "advertise on memecoinist",
             "cpm",
             "cpt",
             "budget for campaign",
@@ -187,9 +185,56 @@ def normalize_keywords(raw: str | list[str]) -> list[str]:
     return out
 
 
-def ensure_priority_rules(settings: dict[str, Any] | None = None) -> dict[str, dict[str, Any]]:
-    """Merge saved rules with defaults; migrate legacy keyword lists once."""
+def apply_account_rules(
+    rules: dict[str, dict[str, Any]],
+    settings: dict[str, Any],
+    account_id: str | None,
+) -> dict[str, dict[str, Any]]:
+    """Overlay one inbox's own rules on the company-wide baseline.
+
+    ``settings["account_priority_rules"][account_id]`` may, per bucket, ADD
+    keywords/domains and override the description / needs_reply. Nothing is
+    ever removed from the baseline and other inboxes are never affected, so a
+    brand's wording stays in that brand's inbox. Returns a new dict.
+    """
+    out = {k: dict(v) for k, v in rules.items()}
+    if not account_id:
+        return out
+    overlay = (settings.get("account_priority_rules") or {}).get(account_id) or {}
+    if not isinstance(overlay, dict):
+        return out
+    for key in PRIORITY_KEYS:
+        extra = overlay.get(key)
+        if not isinstance(extra, dict):
+            continue
+        merged = out[key]
+        merged["keywords"] = normalize_keywords(
+            list(merged.get("keywords") or []) + list(normalize_keywords(extra.get("keywords") or []))
+        )
+        merged["domains"] = normalize_keywords(
+            list(merged.get("domains") or []) + list(normalize_keywords(extra.get("domains") or []))
+        )
+        if extra.get("description"):
+            merged["description"] = str(extra["description"])
+        if "needs_reply" in extra:
+            merged["needs_reply"] = bool(extra["needs_reply"])
+    return out
+
+
+def ensure_priority_rules(
+    settings: dict[str, Any] | None = None, account_id: str | None = None
+) -> dict[str, dict[str, Any]]:
+    """Merge saved rules with defaults; migrate legacy keyword lists once.
+
+    With ``account_id`` the inbox's own ``account_priority_rules`` are layered
+    on top (read-only: only the company-wide baseline is ever persisted).
+    """
     settings = settings if settings is not None else load_settings()
+    rules = _ensure_baseline_rules(settings)
+    return apply_account_rules(rules, settings, account_id) if account_id else rules
+
+
+def _ensure_baseline_rules(settings: dict[str, Any]) -> dict[str, dict[str, Any]]:
     saved = settings.get("priority_rules") or {}
     rules: dict[str, dict[str, Any]] = {}
     for key in PRIORITY_KEYS:
@@ -348,14 +393,16 @@ def match_priority(
     subject: str,
     preview: str,
     settings: dict[str, Any] | None = None,
+    account_id: str | None = None,
 ) -> MatchResult | None:
     """
     Deterministic matcher.
     Returns None if no keyword/domain rule hit (caller may use LLM).
     Precedence after mute/VIP: P0 → P3 → P1 → P2.
+    With ``account_id`` the inbox's own rules are layered on the baseline.
     """
     settings = settings or load_settings()
-    rules = ensure_priority_rules(settings)
+    rules = ensure_priority_rules(settings, account_id)
     sender_l = (sender or "").lower()
     domain = sender_l.split("@")[-1] if "@" in sender_l else ""
     blob = f"{sender_l}\n{(subject or '').lower()}\n{(preview or '').lower()}"
@@ -380,8 +427,18 @@ def match_priority(
                 found.append(kw)
         return found
 
+    hits = {b: hits_for(b) for b in PRIORITY_KEYS}
+    # A Noise keyword that is only a fragment of a longer Critical/Important
+    # phrase that also matched must not bury the enquiry ("newsletter" inside
+    # "newsletter sponsorship" is a sponsorship request, not a newsletter).
+    longer = [h for b in ("p0", "p1") for h in hits[b] if not h.startswith("domain:")]
+    hits["p3"] = [
+        h for h in hits["p3"]
+        if h.startswith("domain:") or not any(h != big and h in big for big in longer)
+    ]
+
     for bucket in ("p0", "p3", "p1", "p2"):
-        found = hits_for(bucket)
+        found = hits[bucket]
         if not found:
             continue
         meta = PRIORITY_META[bucket]

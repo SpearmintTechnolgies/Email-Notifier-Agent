@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>Mailops · Secure Mailbox Setup</title>
+  <link rel="stylesheet" href="/static/onboard.css">
+  <!-- Telegram WebApp SDK: provides initData signature + theme info. -->
+  <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+  <script src="/static/onboard.js" defer></script>
+</head>
+<body>
+<main id="app" aria-live="polite">
+  <header class="hdr">
+    <h1>Mailops</h1>
+    <p class="sub">Secure mailbox onboarding</p>
+    <p id="who" class="who" hidden></p>
+  </header>
+
+  <section id="status" class="status" aria-live="assertive"></section>
+
+  <!-- Auth step: happens automatically on load; shows a spinner until the
+       server verifies the Telegram Mini App initData blob. -->
+  <section id="step-auth" class="step">
+    <p>Verifying your Telegram login…</p>
+  </section>
+
+  <!-- Field entry: mobile-friendly single column, no sensitive fields here. -->
+  <form id="step-fields" class="step" hidden novalidate autocomplete="off">
+    <fieldset>
+      <legend>Account</legend>
+      <label>Account id
+        <input name="account_id" required pattern="[a-z0-9][a-z0-9_-]{0,31}"
+               autocapitalize="off" autocorrect="off" spellcheck="false"
+               inputmode="text" placeholder="e.g. coinography">
+      </label>
+      <label>Display name
+        <input name="display_name" maxlength="80" placeholder="shown in the dashboard">
+      </label>
+      <label>Email address
+        <input name="email" type="email" required inputmode="email"
+               autocapitalize="off" autocorrect="off" spellcheck="false"
+               placeholder="info@example.com">
+      </label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Provider</legend>
+      <label class="radio"><input type="radio" name="provider" value="hostinger" checked> Hostinger (prefill)</label>
+      <label class="radio"><input type="radio" name="provider" value="custom"> Custom IMAP + SMTP</label>
+    </fieldset>
+
+    <fieldset id="hostbox">
+      <legend>IMAP</legend>
+      <label>IMAP host
+        <input name="imap_host" required autocapitalize="off" autocorrect="off"
+               spellcheck="false" inputmode="url" placeholder="imap.hostinger.com">
+      </label>
+      <label>IMAP port
+        <input name="imap_port" required inputmode="numeric" pattern="[0-9]+"
+               value="993">
+      </label>
+      <label>IMAP username
+        <input name="imap_user" autocapitalize="off" autocorrect="off"
+               spellcheck="false" placeholder="(defaults to the email)">
+      </label>
+      <legend>SMTP</legend>
+      <label>SMTP host
+        <input name="smtp_host" required autocapitalize="off" autocorrect="off"
+               spellcheck="false" inputmode="url" placeholder="smtp.hostinger.com">
+      </label>
+      <label>SMTP port
+        <input name="smtp_port" required inputmode="numeric" pattern="[0-9]+"
+               value="465">
+      </label>
+      <label>SMTP username
+        <input name="smtp_user" autocapitalize="off" autocorrect="off"
+               spellcheck="false" placeholder="(defaults to IMAP username)">
+      </label>
+    </fieldset>
+
+    <button type="submit" class="primary">Continue</button>
+  </form>
+
+  <!-- Credential step: ONLY password input here. The form never GETs; the
+       password is cleared from the DOM the moment the request is posted. -->
+  <form id="step-password" class="step" hidden novalidate autocomplete="off">
+    <h2>Mailbox password</h2>
+    <p class="hint">Mailops will attempt an IMAP + SMTP login handshake only.
+      No email is sent. The password is encrypted at rest on the Mailops
+      server and never appears in logs, URLs or Telegram messages.</p>
+    <label>Password
+      <input id="pw-main" type="password" name="imap_password" required
+             autocomplete="new-password" minlength="1" maxlength="1024">
+    </label>
+    <label class="radio"><input id="pw-split" type="checkbox"> Use a different SMTP password</label>
+    <label id="pw-smtp-wrap" hidden>SMTP password
+      <input id="pw-smtp" type="password" name="smtp_password"
+             autocomplete="new-password" minlength="1" maxlength="1024">
+    </label>
+    <div class="row">
+      <button type="button" id="back-to-fields" class="secondary">Back</button>
+      <button type="submit" class="primary" id="run-validate">Verify connection</button>
+    </div>
+  </form>
+
+  <!-- Result + activate -->
+  <section id="step-result" class="step" hidden>
+    <h2>Connection result</h2>
+    <ul id="result-list"></ul>
+    <p id="result-detail" class="hint"></p>
+    <div class="row">
+      <button type="button" id="cancel-all" class="secondary">Cancel</button>
+      <button type="button" id="activate" class="primary" disabled>Activate mailbox</button>
+    </div>
+  </section>
+
+  <section id="step-done" class="step" hidden>
+    <h2>Mailbox activated</h2>
+    <p>You can close this page and return to Telegram.</p>
+    <p class="hint">The new mailbox starts <strong>read-only</strong> with sending disabled.
+      An admin must explicitly enable organize/send from the standard Settings
+      screens.</p>
+  </section>
+</main>
+</body>
+</html>

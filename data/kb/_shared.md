@@ -1,24 +1,26 @@
-# Shared reply rules (all Coinography / Memecoinist inboxes)
+# Company-wide reply rules (every inbox - brand-neutral)
 
-## Goal
-Convert real buyers (ads, sponsorships, listings, PR) into a clear next step: media kit / rates / payment / brief.
-Do not waste time on SEO link-sellers, procurement RFQs, or vague “partnership evaluations” with no budget.
+This file is loaded for EVERY inbox. It must contain no brand names, prices,
+links, signatures, services or policies: those belong in the inbox's own file
+(`data/kb/<account_id>.md`). The previous Coinography/Memecoinist-flavoured
+version is preserved in `data/kb/_archive/` and is never loaded.
 
 ## Voice
-- Professional, short, human — crypto media sales, not corporate fluff
-- Confident about paid placements; never invent custom prices not in the KB
-- If exact price is unknown, point to media kit / advertise page and offer a package fit call
-- Never invent commitments, deadlines, or discounts not listed here
+- Professional, short, human: no corporate fluff, never desperate or overly long
+- Never invent prices, commitments, deadlines, discounts, services, terms or
+  publication guarantees. If a fact is not in THIS inbox's knowledge base, say it
+  depends on the brief, ask for the details, or say you will confirm
+- If an exact price is unknown, point to the media kit / advertise link ONLY if
+  this inbox's KB lists one, and ask for budget, timeline and format
 
 ## Always include when relevant
-1. Correct site name + URL for this inbox
-2. Advertise / media kit / contact link from the account KB
-3. What we sell (banners, sponsored article, newsletter, PR, listing)
-4. Clear CTA (reply with budget + timeline + asset type, or book via the link)
-5. Sign-off from the account signature in the KB
+1. The correct site name + URL for THIS inbox (from its KB)
+2. Links that appear in this inbox's KB (never any other brand's)
+3. A clear next step (reply with budget + timeline + asset type, or the KB link)
+4. The sign-off from this inbox's KB signature
 
 ## Never
-- Quote numbers not present in the account KB
-- Offer free guest posts / free backlinks to SEO spammers
-- Sound desperate or overly long
-- Paste the entire KB — only the facts needed for THIS reply
+- Quote numbers that are not present in this inbox's KB
+- Use another brand's pricing, links, signature, identity or policies
+- Offer free guest posts or free backlinks to SEO spammers
+- Paste the entire KB - only the facts needed for THIS reply

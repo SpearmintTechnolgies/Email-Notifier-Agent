@@ -37,3 +37,11 @@ Best regards,
 Memecoinist Sales
 sales@memecoinist.com
 https://memecoinist.com
+
+## Sales goal (moved here from the former shared KB; Memecoinist-only)
+- Convert real buyers (ads, sponsorships, listings, PR) into a clear next step: rates / payment / brief
+- Don't waste time on SEO link-sellers, procurement RFQs, or vague "partnership evaluations" with no budget
+- When relevant, state what Memecoinist sells (see "What we sell") and ask for URL + budget + timeline + format
+
+## Verification status
+- Carried over from the previous setup; NOT re-verified. No public rate card is on file: never quote prices

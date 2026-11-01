@@ -20,10 +20,17 @@ def _pid_alive(pid: int) -> bool:
         kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
         PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
         handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid)
-        if handle:
-            kernel32.CloseHandle(handle)
+        if not handle:
+            return False
+        try:
+            # A terminated process whose handle is still open elsewhere (e.g.
+            # its launcher) can still be opened: only STILL_ACTIVE means alive.
+            code = ctypes.c_ulong(0)
+            if kernel32.GetExitCodeProcess(handle, ctypes.byref(code)):
+                return code.value == 259  # STILL_ACTIVE
             return True
-        return False
+        finally:
+            kernel32.CloseHandle(handle)
     try:
         os.kill(pid, 0)
     except OSError:

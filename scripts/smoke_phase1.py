@@ -1,124 +1,70 @@
-"""Phase 1 smoke checks — IMAP folders, draft/Waiting filing, notify dedupe."""
+"""Live smoke check against the REAL mailbox — manual use only.
+
+WARNING: This script touches the real inbox (creates folders, moves one
+message, sends Telegram pushes). It is NOT part of the automated test suite.
+Run the safe suite instead:  python -m pytest tests
+
+Only run this after Gmail OAuth login works and you explicitly want an
+end-to-end live check. Requires MAILOPS_TEST_MODE=0 and a configured .env.
+"""
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from telegram import Bot
-
-from mailops.bot import keyboards as kb
-from mailops.config import PRIORITY_FOLDERS, load_accounts, load_runtime
-from mailops.db import (
-    already_notified,
-    clear_draft,
-    db,
-    get_draft,
-    init_db,
-    save_draft,
-)
+from mailops.config import load_accounts, load_runtime, load_settings
+from mailops.db import init_db
 from mailops.himalaya_client import Himalaya
-from mailops.notify import handle_event, send_to_home
+from mailops.notify import handle_event
+from mailops.sync_worker import process_account
+from mailops.taxonomy import bootstrap_all
 
 
-def main() -> int:
-    init_db()
-    him = Himalaya()
-    accounts = load_accounts()
+def require_confirm() -> None:
+    print("This will MOVE one real message and SEND Telegram pushes.")
+    if os.environ.get("MAILOPS_LIVE_SMOKE") != "1":
+        print("Refusing to run. Set MAILOPS_LIVE_SMOKE=1 to confirm.")
+        raise SystemExit(2)
+
+
+async def main() -> int:
+    require_confirm()
     runtime = load_runtime()
+    if not runtime.allowed_users:
+        print("TELEGRAM_ALLOWED_USERS is empty; set your Telegram user id in .env")
+        return 2
+    user_id = runtime.allowed_users[0]
 
-    print("=== FOLDER COUNTS (live IMAP) ===")
-    counts: dict[str, int] = {}
-    sample = None
-    for acc in accounts:
-        for folder in PRIORITY_FOLDERS + ["INBOX"]:
-            envs = him.envelopes(acc.id, folder, page_size=50)
-            key = f"{acc.id}/{folder}"
-            counts[key] = len(envs)
-            if sample is None and envs and folder.startswith("INBOX.P"):
-                sample = (
-                    acc.id,
-                    folder,
-                    str(envs[0].get("id")),
-                    str(envs[0].get("subject")),
-                )
-            if envs:
-                print(f"{key}: {len(envs)}")
+    init_db()
+    print("bootstrap:", bootstrap_all())
 
-    print("sample=", sample)
-
-    print("\n=== REPLY CLI ===")
-    help_r = him.run(["message", "reply", "--help"])
-    blob = (help_r.stdout + help_r.stderr).lower()
-    print("reply help ok=", "reply" in blob and "--send" in blob, "code=", help_r.code)
-
-    print("\n=== DRAFT + MOVE TO WAITING (reply filing) ===")
-    if sample:
-        aid, mailbox, mid, _subj = sample
-        uid = 6877637692
-        save_draft(uid, aid, mailbox, mid, "Mailops Phase1 reply-flow self-test (not sent).")
-        d = get_draft(uid)
-        assert d and d["msg_id"] == mid and "self-test" in d["body"]
-        print("draft saved ok")
-        r = him.move(aid, mid, "INBOX.Waiting", mailbox)
-        print("move Waiting:", r.ok, (r.stderr or r.stdout)[:200])
-        if not r.ok:
-            return 1
-        r2 = him.move(aid, mid, mailbox, "INBOX.Waiting")
-        print("restore:", r2.ok, (r2.stderr or r2.stdout)[:200])
-        clear_draft(uid)
-    else:
-        print("No P-folder sample to test move")
+    accounts = load_accounts()
+    if not accounts:
+        print("No accounts configured.")
         return 1
 
-    print("\n=== KEYBOARDS ===")
-    markup = kb.main_menu()
-    assert len(markup.keyboard) == 3
-    assert markup.keyboard[0][0].text == "Critical"
-    assert kb.thread_keyboard("sales", "INBOX.P1-Important", "1")
-    print("main/thread keyboards ok")
+    events: list[dict] = []
 
-    print("\n=== NOTIFY DEDUPE + PUSH ===")
+    async def notify(ev: dict) -> None:
+        events.append(ev)
 
-    async def notify_smoke() -> None:
-        bot = Bot(runtime.telegram_token)
-        key = "smoke:notify:phase1"
-        with db() as conn:
-            conn.execute("DELETE FROM notified WHERE key=?", (key,))
-        event = {
-            "type": "new_mail",
-            "key": key,
-            "account_id": "sales",
-            "email": "sales@coinography.com",
-            "msg_id": sample[2],
-            "mailbox": sample[1],
-            "subject": "Mailops Phase 1 online",
-            "sender": "mailops@local",
-            "priority": 1,
-            "tags": ["ops"],
-            "reason": "smoke test — Open / Reply buttons attached",
-        }
-        await handle_event(bot, event)
-        assert already_notified(key)
-        await handle_event(bot, event)  # dedupe no-op
-        p1 = sum(v for k, v in counts.items() if k.endswith("P1-Important"))
-        p2 = sum(v for k, v in counts.items() if k.endswith("P2-Normal"))
-        p3 = sum(v for k, v in counts.items() if k.endswith("P3-Noise"))
-        p0 = sum(v for k, v in counts.items() if k.endswith("P0-Critical"))
-        await send_to_home(
-            bot,
-            "Inbox dashboard ready.\nMenu: Critical · Needs reply · Inboxes · Search · Settings",
-            kb.home_inline({"p0": p0, "p1": p1, "p2": p2, "p3": p3}),
-        )
-        print("telegram pushes sent")
+    him = Himalaya()
+    for acc in accounts:
+        items = await process_account(him, acc.id, acc.email, notify)
+        print(f"{acc.id}: processed {len(items)}")
 
-    asyncio.run(notify_smoke())
-    print("\nALL SMOKE CHECKS PASSED")
+    from telegram import Bot
+
+    bot = Bot(token=runtime.telegram_token)
+    for ev in events:
+        await handle_event(bot, ev)
+    print(f"pushed {len(events)} notifications to Telegram user {user_id}")
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(asyncio.run(main()))

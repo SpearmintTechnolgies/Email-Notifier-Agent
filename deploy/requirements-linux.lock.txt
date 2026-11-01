@@ -1,0 +1,40 @@
+# Mailops - fully pinned Linux dependency closure (runtime + tests).
+#
+# Generated from the verified Windows production virtualenv by resolving the
+# complete transitive closure of deploy/requirements-linux.txt with PEP 508
+# environment markers evaluated for Linux/posix. Windows-only members of that
+# closure (colorama, pywin32-ctypes) are therefore absent by construction, and
+# no Windows-only wheel is referenced anywhere below.
+#
+#   python_version   3.12
+#   sys_platform     linux
+#   platform_machine x86_64
+#
+# Install with:
+#   /opt/mailops/venv/bin/pip install --require-hashes=no -r deploy/requirements-linux.lock.txt
+#
+# Every package below publishes a manylinux x86_64 wheel (or is pure Python)
+# for CPython 3.12, so no compiler toolchain is required on the instance.
+aiohappyeyeballs==2.7.1
+aiohttp==3.11.11
+aiosignal==1.4.0
+anyio==4.15.1
+attrs==26.1.0
+certifi==2026.7.22
+cffi==2.1.1
+cryptography==44.0.0
+frozenlist==1.8.0
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.28.1
+idna==3.20
+iniconfig==2.3.1
+multidict==6.9.1
+packaging==26.3
+pluggy==1.6.0
+propcache==0.5.4
+pycparser==3.1
+pytest==8.3.4
+python-telegram-bot==22.6
+typing-extensions==4.16.0
+yarl==1.25.1

@@ -1,15 +1,18 @@
-# Mailops launcher - starts bot in background so console quirks cannot freeze polling.
+# Mailops launcher (Windows) - starts the Telegram bot in the background
+# using the project's own .venv. Safe to double-click via "Start Mailops.bat".
 $ErrorActionPreference = "Stop"
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$py = "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\python.exe"
+
+# Prefer the project virtual environment; fall back to system python.
+$py = Join-Path $here ".venv\Scripts\python.exe"
 if (-not (Test-Path $py)) { $py = "python" }
 
 $dataDir = Join-Path $here "data"
 New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
 $pidFile = Join-Path $dataDir "mailops.pid"
-$appLog = Join-Path $dataDir "mailops.log"
-$outLog = Join-Path $dataDir "bot.stdout.log"
-$errLog = Join-Path $dataDir "bot.stderr.log"
+$appLog  = Join-Path $dataDir "mailops.log"
+$outLog  = Join-Path $dataDir "bot.stdout.log"
+$errLog  = Join-Path $dataDir "bot.stderr.log"
 
 function Test-PidAlive([int]$ProcessId) {
   if ($ProcessId -le 0) { return $false }
@@ -40,23 +43,18 @@ if (Test-Path $pidFile) {
   $existing = 0
   try { $existing = [int]((Get-Content $pidFile -Raw).Trim()) } catch { $existing = 0 }
   if (Test-PidAlive $existing) {
-    $msg = "Mailops is already running (pid $existing). Open Telegram @thebestkruxbot"
-    Write-Host $msg
-    Show-Balloon "Mailops" "Already running - open Telegram bot"
+    Write-Host "Mailops is already running (pid $existing). Open your Telegram bot."
+    Show-Balloon "Mailops" "Already running - open your Telegram bot"
     exit 0
   }
 }
 
+if (-not (Test-Path (Join-Path $here ".env"))) {
+  Write-Host "WARNING: .env missing. Copy .env.example to .env and fill it in."
+}
+
 Write-Host "Installing mailops deps (if needed)..."
 & $py -m pip install -q -r "$here\requirements.txt"
-
-$env:Path = "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts;C:\Users\TheOne\.local\bin;" + $env:Path
-try {
-  hermes --profile inbox gateway stop 2>$null | Out-Null
-  Write-Host "Stopped Hermes inbox gateway (token handoff to mailops)."
-} catch {
-  Write-Host "Hermes gateway stop skipped: $_"
-}
 
 Add-Content -Path $appLog -Value ("`n=== launcher restart {0} ===`n" -f (Get-Date -Format o)) -Encoding utf8
 
@@ -65,7 +63,6 @@ $batRunner = Join-Path $dataDir "run-once.cmd"
 @"
 @echo off
 set PYTHONPATH=$here
-set PATH=$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts;C:\Users\TheOne\.local\bin;%PATH%
 cd /d "$here"
 "$py" -m mailops.main run > "$outLog" 2> "$errLog"
 "@ | Set-Content -Path $batRunner -Encoding ASCII
@@ -86,9 +83,9 @@ for ($i = 0; $i -lt 45; $i++) {
 
 if ($ok) {
   Write-Host "Mailops started."
-  Write-Host "Open Telegram @thebestkruxbot and send /start or tap Critical."
+  Write-Host "Open your Telegram bot and send /start."
   Write-Host "Log: $appLog"
-  Show-Balloon "Mailops" "Agent started - open @thebestkruxbot"
+  Show-Balloon "Mailops" "Agent started - open your Telegram bot"
   Start-Sleep -Seconds 2
   exit 0
 }

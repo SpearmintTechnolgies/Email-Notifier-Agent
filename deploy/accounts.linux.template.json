@@ -1,0 +1,9 @@
+[
+  {
+    "_README": "SAFE TEMPLATE for himalaya/accounts.json - the display-metadata registry mailops reads (ids, addresses, display names, which account is default). NO credentials live in this file on any platform. The real 39-entry file is operational data and is deliberately NOT shipped in this release archive; it must stay in lock-step with himalaya/config.toml and data/settings.json['active_accounts'] (see docs/AWS_RELEASE_TRANSFER.md section 6). Replace this entry with the real registry before use. Unknown keys such as this one are ignored by mailops/config.py::load_accounts.",
+    "id": "example",
+    "email": "info@example.com",
+    "display_name": "Example Brand",
+    "default": true
+  }
+]

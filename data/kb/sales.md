@@ -34,3 +34,12 @@ Best regards,
 Coinography Sales
 sales@coinography.com
 https://coinography.com/advertise
+
+## Sales goal (moved here from the former shared KB; Coinography-only)
+- Convert real buyers (ads, sponsorships, PR) into a clear next step: media kit / rates / payment / brief
+- Don't waste time on SEO link-sellers, procurement RFQs, or vague "partnership evaluations" with no budget
+
+## Verification status
+- Carried over from the previous setup; NOT re-verified. This is the sales@coinography.com mailbox
+  (the info@coinography.com mailbox has its own file, coinography.md). Used only if a mailbox is
+  onboarded under the id `sales`

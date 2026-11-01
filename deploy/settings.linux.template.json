@@ -1,0 +1,68 @@
+{
+  "_README": [
+    "SAFE TEMPLATE for data/settings.json. Contains NO mailbox addresses, NO",
+    "account ids, NO business context and NO credentials - only the policy and",
+    "scheduling defaults that the Windows deployment is verified to run with.",
+    "",
+    "Install:  install -o mailops -g mailops -m 640 deploy/settings.linux.template.json /opt/mailops/data/settings.json",
+    "",
+    "The real 39-mailbox registry (active_accounts / account_policies /",
+    "account_purposes / account_priority_rules / inbox_context /",
+    "verified_mail_servers) is LIVE OPERATIONAL DATA and is deliberately NOT",
+    "shipped in this release archive. It is transferred separately, after the",
+    "Windows bot has been stopped, as described in docs/AWS_RELEASE_TRANSFER.md",
+    "section 6 (settings.json + himalaya/accounts.json + himalaya/config.toml +",
+    "data/ops.db move together as one consistent snapshot, or the registry and",
+    "the himalaya config drift apart).",
+    "",
+    "account_policies is DENY BY DEFAULT (mailops/policy.py): a mailbox that is",
+    "not listed here can neither be organized nor sent from. An empty object is",
+    "therefore the SAFE state for a fresh install.",
+    "",
+    "Delete this _README key before use if you prefer - mailops ignores unknown keys."
+  ],
+
+  "quiet_hours_start": 23,
+  "quiet_hours_end": 8,
+  "timezone": "Asia/Kolkata",
+
+  "min_alert_priority": 1,
+  "noise_push": "off",
+  "p2_batch_seconds": 900,
+
+  "vip_senders": [],
+  "muted_senders": [],
+  "muted_domains": [],
+
+  "sync_interval_seconds": 900,
+  "sync_account_stagger_seconds": 3,
+
+  "digest_enabled": true,
+  "digest_interval_seconds": 900,
+  "digest_p0_immediate": false,
+  "digest_include_p2": false,
+  "digest_mailboxes_disabled": [],
+  "digest_initial_sync_silent": true,
+  "digest_mailbox_page_size": 20,
+  "digest_delivered_retention_seconds": 604800,
+  "digest_edit_in_place": true,
+
+  "ops_alert_standalone_enabled": false,
+
+  "inbox_context": "",
+  "account_purposes": {},
+  "account_priority_rules": {},
+  "context_confirmed": false,
+  "rules_confirmed": false,
+
+  "test_mode": true,
+
+  "account_policies": {},
+  "active_accounts": [],
+  "group_restricted_accounts": [],
+
+  "priority_rules": {},
+  "important_keywords": [],
+  "noise_keywords": [],
+  "verified_mail_servers": {}
+}

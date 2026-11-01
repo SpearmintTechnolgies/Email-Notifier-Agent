@@ -15,12 +15,25 @@ class MailCard:
     date: str
     body: str
     reply_to: str = ""
+    # Recipient ("To:") header. Added for the group-first reading view
+    # (requirement: sender, recipient, subject, date, priority, body all
+    # visible without opening a private chat). Default "" keeps every
+    # existing positional ``MailCard(...)`` call (production + test
+    # doubles) working unchanged.
+    to_name: str = ""
+    to_email: str = ""
 
     @property
     def from_line(self) -> str:
         if self.from_name and self.from_email:
             return f"{self.from_name} <{self.from_email}>"
         return self.from_email or self.from_name or "?"
+
+    @property
+    def to_line(self) -> str:
+        if self.to_name and self.to_email:
+            return f"{self.to_name} <{self.to_email}>"
+        return self.to_email or self.to_name or ""
 
 
 def _header_name(h: dict[str, Any]) -> str:
@@ -94,6 +107,7 @@ def parse_message_json(raw: str) -> MailCard | None:
     part = parts[0]
     headers = part.get("headers") or []
     from_name = from_email = subject = date = reply_to = ""
+    to_name = to_email = ""
     for h in headers:
         if not isinstance(h, dict):
             continue
@@ -103,6 +117,10 @@ def parse_message_json(raw: str) -> MailCard | None:
             addrs = _addr_list(val)
             if addrs:
                 from_name, from_email = addrs[0]
+        elif name == "to":
+            addrs = _addr_list(val)
+            if addrs:
+                to_name, to_email = addrs[0]
         elif name == "subject":
             subject = _text_value(val)
         elif name == "date":
@@ -125,6 +143,8 @@ def parse_message_json(raw: str) -> MailCard | None:
         date=date,
         body=clean_body(body),
         reply_to=reply_to,
+        to_name=to_name,
+        to_email=to_email,
     )
 
 
@@ -187,6 +207,54 @@ def strip_raw_headers(raw: str) -> str:
     return clean_body("\n".join(lines[i:]))
 
 
+# Telegram hard-caps a single message at 4096 UTF-16 code units. We budget
+# well under that for the body so the header block (subject/from/to/date/
+# priority/inbox + page marker) always fits alongside it in one message.
+BODY_PAGE_SIZE = 3000
+
+_PRIORITY_LABELS = {0: "Critical (P0)", 1: "Important (P1)", 2: "Normal (P2)", 3: "Noise (P3)"}
+
+
+def priority_label(priority: int | None) -> str:
+    if priority is None:
+        return ""
+    return _PRIORITY_LABELS.get(int(priority), f"P{priority}")
+
+
+def body_page_count(body: str, page_size: int = BODY_PAGE_SIZE) -> int:
+    if not body:
+        return 1
+    return max(1, (len(body) + page_size - 1) // page_size)
+
+
+def _header_block(
+    account_id: str,
+    mailbox: str,
+    card: MailCard,
+    *,
+    index: int | None,
+    total: int | None,
+    priority: int | None,
+) -> list[str]:
+    pos = ""
+    if index is not None and total is not None and total > 0:
+        pos = f"  ({index + 1}/{total})"
+    folder_short = mailbox.replace("INBOX.", "")
+    lines = [f"Subject: {card.subject}{pos}"]
+    lines.append(f"From: {card.from_line}")
+    if card.to_line:
+        lines.append(f"To: {card.to_line}")
+    if card.reply_to and card.reply_to.lower() not in card.from_line.lower():
+        lines.append(f"Reply-To: {card.reply_to}")
+    if card.date:
+        lines.append(f"Date: {card.date}")
+    plabel = priority_label(priority)
+    if plabel:
+        lines.append(f"Priority: {plabel}")
+    lines.append(f"Inbox: {account_id} · {folder_short}")
+    return lines
+
+
 def format_card(
     account_id: str,
     mailbox: str,
@@ -196,22 +264,47 @@ def format_card(
     total: int | None = None,
     max_body: int = 2200,
 ) -> str:
+    """Legacy single-shot rendering (private-chat default): body truncated
+    to ``max_body`` with a hint to use Reply/AI draft for full context.
+    Kept for callers that do not need body pagination."""
     body = card.body
     if len(body) > max_body:
         body = body[:max_body].rstrip() + "\n\n… (tap Reply / AI draft for full context)"
-    pos = ""
-    if index is not None and total is not None and total > 0:
-        pos = f"  ({index + 1}/{total})"
-    folder_short = mailbox.replace("INBOX.", "")
-    lines = [
-        f"Subject: {card.subject}{pos}",
-        f"From: {card.from_line}",
-    ]
-    if card.reply_to and card.reply_to.lower() not in card.from_line.lower():
-        lines.append(f"Reply-To: {card.reply_to}")
-    if card.date:
-        lines.append(f"Date: {card.date}")
-    lines.append(f"Inbox: {account_id} · {folder_short}")
+    lines = _header_block(account_id, mailbox, card, index=index, total=total, priority=None)
     lines.append("")
     lines.append(body or "(empty body)")
     return "\n".join(lines)
+
+
+def format_card_page(
+    account_id: str,
+    mailbox: str,
+    card: MailCard,
+    *,
+    index: int | None = None,
+    total: int | None = None,
+    priority: int | None = None,
+    body_page: int = 0,
+    page_size: int = BODY_PAGE_SIZE,
+) -> tuple[str, int, int]:
+    """Full card (sender/recipient/subject/date/priority/body) with the
+    body split into pages of ``page_size`` characters so a long email never
+    exceeds Telegram's per-message limit.
+
+    Returns ``(text, body_page, total_body_pages)``. ``body_page`` is
+    clamped into range, so a stale "Next body" tap on a shrunk mailbox
+    cannot go out of bounds.
+    """
+    body = card.body or ""
+    total_pages = body_page_count(body, page_size)
+    body_page = max(0, min(body_page, total_pages - 1))
+    start = body_page * page_size
+    chunk = body[start : start + page_size]
+    lines = _header_block(
+        account_id, mailbox, card, index=index, total=total, priority=priority
+    )
+    if total_pages > 1:
+        lines.append(f"Body page {body_page + 1}/{total_pages}")
+    lines.append("")
+    lines.append(chunk or "(empty body)")
+    return "\n".join(lines), body_page, total_pages
